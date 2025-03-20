@@ -63,6 +63,17 @@ export default function SignTransaction() {
       const wallet = await selector.wallet();
       const deadline = formatISO(addMinutes(new Date(), 2));
       
+      // Create a 32-byte nonce using Web Crypto API
+      const nonceArray = window.crypto.getRandomValues(new Uint8Array(32));
+      // Convert Uint8Array to regular array before creating Buffer
+      const nonceBuffer = Buffer.from(Array.from(nonceArray));
+      
+      console.log('Nonce array:', Array.from(nonceArray));
+      console.log('Nonce array length:', nonceArray.length);
+      console.log('Nonce buffer:', nonceBuffer);
+      console.log('Nonce buffer length:', nonceBuffer.length);
+      console.log('Nonce base64:', nonceBuffer.toString('base64'));
+      
       const payload = {
         callbackUrl: "http://localhost:3000/my-near-wallet-gateway/?channelId=16840a22-1c5e-42e2-a8ac-0f3db5cdbd13",
         message: JSON.stringify({
@@ -76,16 +87,22 @@ export default function SignTransaction() {
           }],
           signer_id: accounts[0].accountId
         }),
-        nonce: "RpoioGImORY8zWjNpegBLTu4nYZjiTGKtwHzBkhY8kw=",
+        nonce: nonceBuffer.toString('base64'),
         recipient: "intents.near"
       };
 
       const payloadString = JSON.stringify(payload);
+      
+      console.log('Payload:', payload);
+      console.log('Payload String:', payloadString);
+
       const signature = await wallet.signMessage({
         message: payloadString,
         recipient: "intents.near",
-        nonce: Buffer.from("RpoioGImORY8zWjNpegBLTu4nYZjiTGKtwHzBkhY8kw=", 'base64').toString('base64'),
+        nonce: nonceBuffer, // Pass the Buffer directly
       });
+
+      console.log('Signature:', signature);
 
       const signedPayload = {
         payload,
@@ -93,6 +110,8 @@ export default function SignTransaction() {
         public_key: accounts[0].publicKey,
         signature: `ed25519:${Buffer.from(signature).toString('base64')}`
       };
+
+      console.log('Signed Payload:', signedPayload);
 
       // Sign and execute the transaction
       const transaction = {
@@ -110,6 +129,8 @@ export default function SignTransaction() {
           }
         }]
       };
+
+      console.log('Transaction:', transaction);
 
       try {
         const outcome = await wallet.signAndSendTransaction(transaction);

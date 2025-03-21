@@ -102,13 +102,17 @@ export default function SignTransaction() {
         nonce: nonceBuffer, // Pass the Buffer directly
       });
 
+      if (!signature) {
+        throw new Error("Failed to sign the message. Signature is undefined.");
+      }
+
       console.log('Signature:', signature);
 
       const signedPayload = {
         payload,
         standard: "nep413",
         public_key: accounts[0].publicKey,
-        signature: `ed25519:${Buffer.from(signature).toString('base64')}`
+        signature: `ed25519:${Buffer.from(signature.signature).toString('base64')}`
       };
 
       console.log('Signed Payload:', signedPayload);

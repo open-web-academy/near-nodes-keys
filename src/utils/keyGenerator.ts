@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
 export interface KeyPair {
@@ -8,26 +8,12 @@ export interface KeyPair {
 }
 
 export function generateValidatorKey(accountId: string): KeyPair {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519', {
-    publicKeyEncoding: {
-      type: 'spki',
-      format: 'der'
-    },
-    privateKeyEncoding: {
-      type: 'pkcs8',
-      format: 'der'
-    }
-  });
-
-  const publicKeyBytes = publicKey.slice(12);
-  const privateKeyBytes = privateKey.slice(16);
-
-  const publicKeyStr = `ed25519:${bs58.encode(Buffer.from(publicKeyBytes))}`;
-  const privateKeyStr = `ed25519:${bs58.encode(Buffer.from(privateKeyBytes))}`;
-
+  const keypair = nacl.sign.keyPair(); // Generates a keypair with 32-byte publicKey and 64-byte secretKey
+  const publicKeyStr = `ed25519:${bs58.encode(keypair.publicKey)}`;
+  const secretKeyStr = `ed25519:${bs58.encode(keypair.secretKey)}`;
   return {
     account_id: accountId,
     public_key: publicKeyStr,
-    secret_key: privateKeyStr
+    secret_key: secretKeyStr,
   };
 }

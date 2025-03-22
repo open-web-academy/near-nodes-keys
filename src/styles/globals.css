@@ -1,26 +1,63 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* Custom global design variables */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --primary-color: #0070f3;
+  --primary-color-hover: #005bb5;
+  --background-color: #ffffff;
+  --font-family: 'Inter', sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base styles */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-family);
+  background-color: var(--background-color);
+  color: #333;
+  line-height: 1.6;
+}
+
+/* A responsive container */
+.container {
+  @apply mx-auto px-4 sm:px-6 lg:px-8;
+  max-width: 1200px;
+}
+
+/* Typography */
+h1 {
+  @apply text-3xl sm:text-4xl md:text-5xl font-bold mb-4;
+}
+
+h2 {
+  @apply text-2xl sm:text-3xl font-semibold mb-3;
+}
+
+p {
+  @apply text-base sm:text-lg mb-4;
+}
+
+/* Form elements */
+input,
+button {
+  @apply rounded-md border border-gray-300 p-2;
+}
+
+button {
+  @apply bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color-hover)] transition-colors;
+}
+
+/* Card component for consistent layout */
+.card {
+  @apply bg-white shadow rounded-lg p-6 mb-4;
+}
+
+/* Utility class if needed */
+.mt-custom {
+  margin-top: 1.5rem;
 }

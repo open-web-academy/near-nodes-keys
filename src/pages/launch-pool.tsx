@@ -71,7 +71,9 @@ export default function LaunchPool() {
       };
 
       const outcome = await wallet.signAndSendTransaction(transaction);
-      setResult(`Transaction submitted! Hash: ${outcome.transaction.hash}`);
+      setResult(
+        `Transaction submitted! Hash: ${outcome?.transaction?.hash || "N/A"}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transaction failed');
     }

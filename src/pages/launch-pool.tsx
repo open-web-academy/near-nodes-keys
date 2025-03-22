@@ -51,25 +51,23 @@ export default function LaunchPool() {
       const wallet = await selector.wallet();
       const transaction = {
         signerId: accounts[0].accountId,
-        receiverId: 'poolfactory.near', // update with the appropriate contract id
+        receiverId: 'poolfactory.near', // update with the appropriate contract id if needed
         actions: [
           {
-            type: 'FunctionCall',
+            type: "FunctionCall" as const, // cast to literal type
             params: {
               methodName: 'launch_pool',
               args: {
-                // Final pool ID: append a suffix to the entered poolName
                 pool_id: poolName.endsWith('.poolfactory.near')
                   ? poolName
                   : `${poolName}.poolfactory.near`,
-                // initial deposit provided in yoctoNEAR
                 initial_deposit: initialDeposit,
               },
-              gas: '30000000000000', // 30 TGas (adjust as needed)
+              gas: '30000000000000',
               deposit: initialDeposit,
-            },
-          },
-        ],
+            }
+          }
+        ]
       };
 
       const outcome = await wallet.signAndSendTransaction(transaction);

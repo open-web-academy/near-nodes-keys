@@ -5,6 +5,7 @@ import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
+import { JsonRpcProvider } from 'near-api-js/lib/providers';
 
 export default function WithdrawRewards() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -46,6 +47,7 @@ export default function WithdrawRewards() {
     setAccounts([]);
   };
 
+  // Update the fetchBalances function to use the correct API
   const fetchBalances = async () => {
     if (!poolId || !selector || accounts.length === 0) {
       setError('Please connect your wallet and enter a pool ID');
@@ -63,36 +65,59 @@ export default function WithdrawRewards() {
         ? poolId 
         : `${poolId}.poolv1.near`;
       
-      const wallet = await selector.wallet();
-      
-      // This is a simplified version of how you would get the balances
-      // In a real app, you'd need to properly parse the return values
+      // Use provider for view calls instead of wallet
+      const { network } = selector.options;
+      const provider = new JsonRpcProvider({ url: network.nodeUrl });
       
       // Get staked balance
-      const stakedBalanceResult = await wallet.viewMethod({
-        contractId: formattedPoolId,
-        method: 'get_account_staked_balance',
-        args: { account_id: accountId }
+      const stakedBalanceResponse = await provider.query({
+        request_type: 'call_function',
+        account_id: formattedPoolId,
+        method_name: 'get_account_staked_balance',
+        args_base64: btoa(JSON.stringify({ account_id: accountId })),
+        finality: 'optimistic',
       });
       
       // Get unstaked balance
-      const unstackedBalanceResult = await wallet.viewMethod({
-        contractId: formattedPoolId,
-        method: 'get_account_unstaked_balance',
-        args: { account_id: accountId }
+      const unstackedBalanceResponse = await provider.query({
+        request_type: 'call_function',
+        account_id: formattedPoolId,
+        method_name: 'get_account_unstaked_balance',
+        args_base64: btoa(JSON.stringify({ account_id: accountId })),
+        finality: 'optimistic',
       });
       
+      // Check if we have a result
+      if (!stakedBalanceResponse.result || !unstackedBalanceResponse.result) {
+        throw new Error('Failed to get balance from contract');
+      }
+      
+      // Handle the result properly - it should be a Uint8Array
+      let stakedBalanceString, unstackedBalanceString;
+      
+      if (stakedBalanceResponse.result instanceof Uint8Array) {
+        stakedBalanceString = JSON.parse(Buffer.from(stakedBalanceResponse.result).toString('utf8'));
+      } else {
+        // Fallback if it's not a Uint8Array
+        stakedBalanceString = stakedBalanceResponse.result;
+      }
+      
+      if (unstackedBalanceResponse.result instanceof Uint8Array) {
+        unstackedBalanceString = JSON.parse(Buffer.from(unstackedBalanceResponse.result).toString('utf8'));
+      } else {
+        // Fallback if it's not a Uint8Array
+        unstackedBalanceString = unstackedBalanceResponse.result;
+      }
+      
       // Convert from yoctoNEAR to NEAR for display
-      const stakedInNear = parseFloat(stakedBalanceResult) / 1e24;
-      const unstackedInNear = parseFloat(unstackedBalanceResult) / 1e24;
+      const stakedInNear = parseFloat(stakedBalanceString) / 1e24;
+      const unstackedInNear = parseFloat(unstackedBalanceString) / 1e24;
       
       setStakedBalance(stakedInNear.toFixed(5));
       setAvailableBalance(unstackedInNear.toFixed(5));
       
-      // Also check if unstaked balance is available for withdrawal
-      // This would require another contract call to check if funds are unlocked
-      
     } catch (err) {
+      console.error('Error fetching balances:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch balances');
     } finally {
       setIsLoading(false);

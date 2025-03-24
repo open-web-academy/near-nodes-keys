@@ -1,9 +1,21 @@
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function Sidebar() {
-  // Use internal state only to simplify
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
+
+  // Improved navigation handler with more reliable timing
+  const handleNavigation = (href: string) => {
+    // Close the menu first
+    setIsOpen(false);
+    
+    // Use a slightly longer timeout for more reliable navigation
+    setTimeout(() => {
+      // Use router.replace instead of push for more reliable navigation
+      router.replace(href);
+    }, 100); // Increased from 10ms to 100ms
+  };
 
   return (
     <>
@@ -37,7 +49,7 @@ export default function Sidebar() {
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Sidebar - slides in on mobile, static on desktop */}
+      {/* Sidebar */}
       <div
         className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-gray-800 text-green-400 p-4 border-r-4 border-dotted border-green-400 flex flex-col justify-between transform transition-transform duration-300 md:transform-none ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
@@ -46,20 +58,45 @@ export default function Sidebar() {
         <div>
           <h2 className="text-2xl font-bold mb-8 tracking-[0.15em]">NEAR Nodes Utils</h2>
           <nav className="space-y-6 text-lg">
-            <Link
-              href="/"
-              className="block hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700"
-              onClick={() => setIsOpen(false)}
+            <button
+              type="button"
+              onClick={() => handleNavigation('/')}
+              className={`w-full text-left hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700 ${
+                router.pathname === '/' ? 'text-white font-bold' : ''
+              }`}
             >
               Create Node Keys
-            </Link>
-            <Link
-              href="/launch-pool"
-              className="block hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700"
-              onClick={() => setIsOpen(false)}
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => handleNavigation('/launch-pool')}
+              className={`w-full text-left hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700 ${
+                router.pathname === '/launch-pool' ? 'text-white font-bold' : ''
+              }`}
             >
               Launch Pool
-            </Link>
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => handleNavigation('/edit-pool')}
+              className={`w-full text-left hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700 ${
+                router.pathname === '/edit-pool' ? 'text-white font-bold' : ''
+              }`}
+            >
+              Edit Pool
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => handleNavigation('/withdraw-rewards')}
+              className={`w-full text-left hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700 ${
+                router.pathname === '/withdraw-rewards' ? 'text-white font-bold' : ''
+              }`}
+            >
+              Withdraw Rewards
+            </button>
           </nav>
         </div>
         <footer>

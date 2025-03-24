@@ -17,11 +17,9 @@ const nextConfig = {
     }
     return config;
   },
-  // Add this to prevent injection conflicts
+  // Remove the invalid experimental.scriptLoader configuration
   experimental: {
-    scriptLoader: {
-      deferScripts: true,
-    }
+    // You can add valid experimental options here if needed
   }
 }
 

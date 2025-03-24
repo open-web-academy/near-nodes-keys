@@ -59,8 +59,13 @@ export default function LaunchPool() {
     try {
       const wallet = await selector.wallet();
       
+      // Format the pool ID correctly by appending .poolv1.near if needed
+      const formattedPoolId = poolId.endsWith('.poolv1.near') 
+        ? poolId 
+        : `${poolId}.poolv1.near`;
+      
       const args = {
-        staking_pool_id: poolId,
+        staking_pool_id: formattedPoolId, // Use the formatted pool ID
         owner_id: ownerId,
         stake_public_key: stakePublicKey,
         reward_fee_fraction: {

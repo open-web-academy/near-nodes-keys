@@ -1,30 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
-  // Avoid webpack 5 polyfill issues
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      net: false,
-      tls: false,
-      crypto: require.resolve('crypto-browserify'),
-      stream: require.resolve('stream-browserify'),
-      path: require.resolve('path-browserify'),
-      os: require.resolve('os-browserify/browser'),
-      http: require.resolve('stream-http'),
-      https: require.resolve('https-browserify'),
-      zlib: require.resolve('browserify-zlib'),
-    };
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        crypto: require.resolve('crypto-browserify'),
+        stream: require.resolve('stream-browserify'),
+        buffer: require.resolve('buffer')
+      };
+      
+      // Add buffer to externals
+      config.externals = {
+        ...config.externals,
+        bufferutil: 'bufferutil',
+        'utf-8-validate': 'utf-8-validate',
+      };
+    }
     return config;
   },
-  // Add this to disable ISR for Amplify
+  // Remove the invalid experimental.scriptLoader configuration
   experimental: {
-    isrMemoryCacheSize: 0,
-  },
-  // Optional: set output for Amplify compatibility
-  output: 'standalone',
+    // You can add valid experimental options here if needed
+  }
 }
 
 module.exports = nextConfig

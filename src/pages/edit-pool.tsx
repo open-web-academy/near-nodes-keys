@@ -6,6 +6,7 @@ import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
+import { useTransactionResult } from '../hooks/useTransactionResult';
 
 export default function EditPool() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -22,6 +23,24 @@ export default function EditPool() {
   const [numerator, setNumerator] = useState('5');
   const [denominator, setDenominator] = useState('100');
   const [poolInfo, setPoolInfo] = useState<any>(null);
+
+  // Use the transaction result hook
+  const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
+  
+  // Handle transaction results
+  useEffect(() => {
+    if (transactionHash) {
+      setResult(`Pool update successful! Transaction hash: ${transactionHash}`);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+    
+    if (transactionError) {
+      setError(`Failed to update pool: ${transactionError}`);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+  }, [transactionHash, transactionError]);
 
   useEffect(() => {
     setupWalletSelector({
@@ -135,7 +154,7 @@ export default function EditPool() {
       
       const wallet = await selector.wallet();
       
-      const outcome = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         signerId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
@@ -148,13 +167,15 @@ export default function EditPool() {
               deposit: '0'
             }
           }
-        ]
+        ],
+        callbackUrl: window.location.href // Add callback URL
       });
       
-      setResult(`Staking key updated! Transaction hash: ${outcome?.transaction?.hash || "N/A"}`);
+      // Don't update state here as we'll be redirected
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update staking key');
-    } finally {
+      // Only handle errors that occur before redirect
+      console.error('Error before redirect:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
       setIsLoading(false);
     }
   };
@@ -176,7 +197,7 @@ export default function EditPool() {
       
       const wallet = await selector.wallet();
       
-      const outcome = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         signerId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
@@ -194,14 +215,15 @@ export default function EditPool() {
               deposit: '0'
             }
           }
-        ]
+        ],
+        callbackUrl: window.location.href
       });
       
-      setResult(`Reward fee updated! Transaction hash: ${outcome?.transaction?.hash || "N/A"}`);
+      // Don't update state here
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update reward fee');
-    } finally {
+      // Handle pre-redirect errors
       setIsLoading(false);
+      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
     }
   };
 

@@ -6,6 +6,7 @@ import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
+import { useTransactionResult } from '../hooks/useTransactionResult';
 
 export default function LaunchPool() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -13,6 +14,7 @@ export default function LaunchPool() {
   const [accounts, setAccounts] = useState<Array<AccountState>>([]);
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Form fields
   const [poolId, setPoolId] = useState('');
@@ -20,6 +22,24 @@ export default function LaunchPool() {
   const [stakePublicKey, setStakePublicKey] = useState('');
   const [numerator, setNumerator] = useState('5');
   const [denominator, setDenominator] = useState('100');
+
+  // Use the transaction result hook
+  const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
+  
+  // Handle transaction results
+  useEffect(() => {
+    if (transactionHash) {
+      setResult(`Pool creation successful! Transaction hash: ${transactionHash}`);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+    
+    if (transactionError) {
+      setError(`Failed to create pool: ${transactionError}`);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+  }, [transactionHash, transactionError]);
 
   useEffect(() => {
     setupWalletSelector({
@@ -61,10 +81,14 @@ export default function LaunchPool() {
     }
 
     try {
+      setIsLoading(true);
       const wallet = await selector.wallet();
       
+      // Format the pool ID correctly
+      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
+      
       const args = {
-        staking_pool_id: poolId,
+        staking_pool_id: formattedPoolId,
         owner_id: ownerId,
         stake_public_key: stakePublicKey,
         reward_fee_fraction: {
@@ -73,12 +97,12 @@ export default function LaunchPool() {
         }
       };
 
-      const transaction = {
+      await wallet.signAndSendTransaction({
         signerId: accounts[0].accountId,
         receiverId: 'poolv1.near',
         actions: [
           {
-            type: "FunctionCall" as const,
+            type: "FunctionCall",
             params: {
               methodName: 'create_staking_pool',
               args,
@@ -86,15 +110,16 @@ export default function LaunchPool() {
               deposit: '30000000000000000000000000' // 30 NEAR
             }
           }
-        ]
-      };
-
-      const outcome = await wallet.signAndSendTransaction(transaction);
-      setResult(
-        `Transaction submitted! Hash: ${outcome?.transaction?.hash || "N/A"}`
-      );
+        ],
+        callbackUrl: window.location.href // Add callback URL
+      });
+      
+      // Don't update state here as we'll be redirected
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transaction failed');
+      // Only handle errors that occur before redirect
+      console.error('Error before redirect:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
+      setIsLoading(false);
     }
   };
 

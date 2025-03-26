@@ -1,11 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateValidatorKey, KeyPair } from '../utils/keyGenerator';
 import Layout from '../components/Layout';
+import { useTransactionResult } from '../hooks/useTransactionResult';
 
 export default function Home() {
   const [accountId, setAccountId] = useState('');
   const [generatedKey, setGeneratedKey] = useState<KeyPair | null>(null);
   const [error, setError] = useState('');
+  const [selector, setSelector] = useState<WalletSelector | null>(null);
+  const [modal, setModal] = useState<any>(null);
+  const [accounts, setAccounts] = useState<Array<AccountState>>([]);
+  const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
+
+  useEffect(() => {
+    if (transactionHash) {
+      setResult(`PING successful! Transaction hash: ${transactionHash}`);
+      setIsPingSuccess(true);
+      clearTransactionResult();
+    }
+
+    if (transactionError) {
+      setError(`Failed to ping validator: ${transactionError}`);
+      setIsPingSuccess(false);
+      clearTransactionResult();
+    }
+  }, [transactionHash, transactionError]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +52,48 @@ export default function Home() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const sendPing = async () => {
+    if (!poolId || !selector || accounts.length === 0) {
+      setError('Please connect your wallet and enter a pool ID');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setResult('');
+    setIsPingSuccess(null);
+
+    try {
+      const formattedPoolId = poolId.endsWith('.poolv1.near') 
+        ? poolId 
+        : `${poolId}.poolv1.near`;
+      
+      const wallet = await selector.wallet();
+      
+      await wallet.signAndSendTransaction({
+        signerId: accounts[0].accountId,
+        receiverId: formattedPoolId,
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: 'ping',
+              args: {},
+              gas: '100000000000000',
+              deposit: '0'
+            }
+          }
+        ],
+        callbackUrl: window.location.href
+      });
+    } catch (err) {
+      console.error('Ping error:', err);
+      setIsPingSuccess(false);
+      setError(err instanceof Error ? err.message : 'Failed to ping validator');
+      setIsLoading(false);
+    }
   };
 
   return (

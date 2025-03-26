@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
 import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet'; // Add this import
@@ -7,6 +7,7 @@ import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
 import { JsonRpcProvider } from 'near-api-js/lib/providers';
+import { useTransactionResult } from '../hooks/useTransactionResult';
 
 export default function WithdrawRewards() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -21,6 +22,32 @@ export default function WithdrawRewards() {
   const [stakedBalance, setStakedBalance] = useState<string | null>(null);
   const [availableBalance, setAvailableBalance] = useState<string | null>(null);
   const [accountId, setAccountId] = useState('');
+
+  // Use the transaction result hook
+  const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
+  
+  // Handle transaction results
+  useEffect(() => {
+    if (transactionHash) {
+      const action = lastAction.current;
+      setResult(`${action} successful! Transaction hash: ${transactionHash}`);
+      setIsLoading(false);
+      
+      // Refresh balances after a successful transaction
+      setTimeout(() => fetchBalances(), 2000);
+      clearTransactionResult();
+    }
+    
+    if (transactionError) {
+      const action = lastAction.current;
+      setError(`Failed to ${action.toLowerCase()}: ${transactionError}`);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+  }, [transactionHash, transactionError]);
+
+  // Add a ref to track which action was last performed
+  const lastAction = useRef('Transaction');
 
   useEffect(() => {
     setupWalletSelector({
@@ -147,6 +174,7 @@ export default function WithdrawRewards() {
     setIsLoading(true);
     setError('');
     setResult('');
+    lastAction.current = 'Unstake'; // Track the action type
 
     try {
       const formattedPoolId = poolId.endsWith('.poolv1.near') 
@@ -155,7 +183,7 @@ export default function WithdrawRewards() {
       
       const wallet = await selector.wallet();
       
-      const outcome = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         signerId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
@@ -168,15 +196,14 @@ export default function WithdrawRewards() {
               deposit: '0'
             }
           }
-        ]
+        ],
+        callbackUrl: window.location.href // Add callback URL
       });
       
-      setResult(`Unstake initiated! Transaction hash: ${outcome?.transaction?.hash || "N/A"}`);
-      // After unstaking, we should update the balances
-      setTimeout(() => fetchBalances(), 2000);
+      // Don't update state here as we'll be redirected
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unstake');
-    } finally {
+      console.error('Error before redirect:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initiate unstaking');
       setIsLoading(false);
     }
   };
@@ -190,6 +217,7 @@ export default function WithdrawRewards() {
     setIsLoading(true);
     setError('');
     setResult('');
+    lastAction.current = 'Withdraw'; // Track the action type
 
     try {
       const formattedPoolId = poolId.endsWith('.poolv1.near') 
@@ -198,7 +226,7 @@ export default function WithdrawRewards() {
       
       const wallet = await selector.wallet();
       
-      const outcome = await wallet.signAndSendTransaction({
+      await wallet.signAndSendTransaction({
         signerId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
@@ -211,15 +239,13 @@ export default function WithdrawRewards() {
               deposit: '0'
             }
           }
-        ]
+        ],
+        callbackUrl: window.location.href
       });
       
-      setResult(`Withdraw successful! Transaction hash: ${outcome?.transaction?.hash || "N/A"}`);
-      // After withdrawal, we should update the balances
-      setTimeout(() => fetchBalances(), 2000);
+      // Don't update state here
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to withdraw');
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to initiate withdrawal');
       setIsLoading(false);
     }
   };

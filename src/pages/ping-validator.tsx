@@ -6,6 +6,8 @@ import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
+import { useTransactionResult } from '../hooks/useTransactionResult';
+import { executeTransaction } from '../utils/walletUtils';
 
 export default function PingValidator() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -18,6 +20,26 @@ export default function PingValidator() {
   
   // Form fields
   const [poolId, setPoolId] = useState('');
+
+  // Use the transaction result hook
+  const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
+  
+  // Handle transaction results
+  useEffect(() => {
+    if (transactionHash) {
+      setResult(`PING successful! Transaction hash: ${transactionHash}`);
+      setIsPingSuccess(true);
+      setIsLoading(false); // Ensure loading state is reset
+      clearTransactionResult();
+    }
+    
+    if (transactionError) {
+      setError(`Failed to ping validator: ${transactionError}`);
+      setIsPingSuccess(false);
+      setIsLoading(false);
+      clearTransactionResult();
+    }
+  }, [transactionHash, transactionError, clearTransactionResult]);
 
   useEffect(() => {
     setupWalletSelector({
@@ -61,32 +83,35 @@ export default function PingValidator() {
         ? poolId 
         : `${poolId}.poolv1.near`;
       
-      const wallet = await selector.wallet();
-      
-      // The ping method doesn't require any arguments
-      const pingOutcome = await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
           {
             type: "FunctionCall",
             params: {
               methodName: 'ping',
-              args: {},  // No arguments needed
-              gas: '100000000000000',  // Standard gas
-              deposit: '0'  // No deposit needed for ping
+              args: {},
+              gas: '100000000000000',
+              deposit: '0'
             }
           }
         ]
       });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`PING successful! Transaction hash: ${result.transactionHash}`);
+        setIsPingSuccess(true);
+        setIsLoading(false);
+      }
+      // For MyNEAR Wallet, results will be handled by the useTransactionResult hook
       
-      setIsPingSuccess(true);
-      setResult(`PING successful! Transaction hash: ${pingOutcome?.transaction?.hash || "N/A"}`);
     } catch (err) {
       console.error('Ping error:', err);
       setIsPingSuccess(false);
       setError(err instanceof Error ? err.message : 'Failed to ping validator');
-    } finally {
       setIsLoading(false);
     }
   };

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
-import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet'; // Add this import
+import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
 import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
 import { JsonRpcProvider } from 'near-api-js/lib/providers';
 import { useTransactionResult } from '../hooks/useTransactionResult';
+import { executeTransaction } from '../utils/walletUtils';
 
 export default function WithdrawRewards() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
@@ -23,14 +24,16 @@ export default function WithdrawRewards() {
   const [availableBalance, setAvailableBalance] = useState<string | null>(null);
   const [accountId, setAccountId] = useState('');
 
+  // Track the last action performed
+  const lastAction = useRef('Transaction');
+
   // Use the transaction result hook
   const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
   
   // Handle transaction results
   useEffect(() => {
     if (transactionHash) {
-      const action = lastAction.current;
-      setResult(`${action} successful! Transaction hash: ${transactionHash}`);
+      setResult(`${lastAction.current} successful! Transaction hash: ${transactionHash}`);
       setIsLoading(false);
       
       // Refresh balances after a successful transaction
@@ -39,22 +42,18 @@ export default function WithdrawRewards() {
     }
     
     if (transactionError) {
-      const action = lastAction.current;
-      setError(`Failed to ${action.toLowerCase()}: ${transactionError}`);
+      setError(`Failed to ${lastAction.current.toLowerCase()}: ${transactionError}`);
       setIsLoading(false);
       clearTransactionResult();
     }
-  }, [transactionHash, transactionError]);
-
-  // Add a ref to track which action was last performed
-  const lastAction = useRef('Transaction');
+  }, [transactionHash, transactionError, clearTransactionResult]);
 
   useEffect(() => {
     setupWalletSelector({
       network: 'mainnet',
       modules: [
         setupMeteorWallet(),
-        setupMyNearWallet() // Add MyNEAR Wallet support
+        setupMyNearWallet()
       ]
     }).then((selector) => {
       setSelector(selector);
@@ -174,21 +173,18 @@ export default function WithdrawRewards() {
     setIsLoading(true);
     setError('');
     setResult('');
-    lastAction.current = 'Unstake'; // Track the action type
+    lastAction.current = 'Unstake';
 
     try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
-        ? poolId 
-        : `${poolId}.poolv1.near`;
+      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
       
-      const wallet = await selector.wallet();
-      
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
           {
-            type: "FunctionCall" as const,
+            type: "FunctionCall",
             params: {
               methodName: 'unstake_all',
               args: {},
@@ -196,14 +192,22 @@ export default function WithdrawRewards() {
               deposit: '0'
             }
           }
-        ],
-        callbackUrl: window.location.href // Add callback URL
+        ]
       });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`Unstake successful! Transaction hash: ${result.transactionHash}`);
+        setIsLoading(false);
+        
+        // Refresh balances after a short delay
+        setTimeout(() => fetchBalances(), 2000);
+      }
+      // For MyNEAR Wallet, result will be handled by the hook
       
-      // Don't update state here as we'll be redirected
     } catch (err) {
-      console.error('Error before redirect:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initiate unstaking');
+      console.error('Error unstaking:', err);
+      setError(err instanceof Error ? err.message : 'Failed to unstake');
       setIsLoading(false);
     }
   };
@@ -217,21 +221,18 @@ export default function WithdrawRewards() {
     setIsLoading(true);
     setError('');
     setResult('');
-    lastAction.current = 'Withdraw'; // Track the action type
+    lastAction.current = 'Withdraw';
 
     try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
-        ? poolId 
-        : `${poolId}.poolv1.near`;
+      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
       
-      const wallet = await selector.wallet();
-      
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
         receiverId: formattedPoolId,
         actions: [
           {
-            type: "FunctionCall" as const,
+            type: "FunctionCall",
             params: {
               methodName: 'withdraw_all',
               args: {},
@@ -239,13 +240,22 @@ export default function WithdrawRewards() {
               deposit: '0'
             }
           }
-        ],
-        callbackUrl: window.location.href
+        ]
       });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`Withdrawal successful! Transaction hash: ${result.transactionHash}`);
+        setIsLoading(false);
+        
+        // Refresh balances after a short delay
+        setTimeout(() => fetchBalances(), 2000);
+      }
+      // For MyNEAR Wallet, result will be handled by the hook
       
-      // Don't update state here
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initiate withdrawal');
+      console.error('Error withdrawing:', err);
+      setError(err instanceof Error ? err.message : 'Failed to withdraw');
       setIsLoading(false);
     }
   };

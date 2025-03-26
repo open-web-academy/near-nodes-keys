@@ -1,28 +1,28 @@
 import { useState, useEffect } from 'react';
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
-import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet'; // Add this import
+import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
 import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
+import { JsonRpcProvider } from 'near-api-js/lib/providers';
 import { useTransactionResult } from '../hooks/useTransactionResult';
+import { executeTransaction } from '../utils/walletUtils';
 
 export default function EditPool() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
   const [modal, setModal] = useState<any>(null);
   const [accounts, setAccounts] = useState<Array<AccountState>>([]);
+  const [poolId, setPoolId] = useState('');
+  const [poolOwner, setPoolOwner] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+  const [stakePublicKey, setStakePublicKey] = useState('');
+  const [numerator, setNumerator] = useState('');
+  const [denominator, setDenominator] = useState('');
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isOwner, setIsOwner] = useState<boolean | null>(null);
-  
-  // Form fields
-  const [poolId, setPoolId] = useState('');
-  const [stakePublicKey, setStakePublicKey] = useState('');
-  const [numerator, setNumerator] = useState('5');
-  const [denominator, setDenominator] = useState('100');
-  const [poolInfo, setPoolInfo] = useState<any>(null);
 
   // Use the transaction result hook
   const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
@@ -40,14 +40,15 @@ export default function EditPool() {
       setIsLoading(false);
       clearTransactionResult();
     }
-  }, [transactionHash, transactionError]);
+  }, [transactionHash, transactionError, clearTransactionResult]);
 
+  // Setup wallet selector
   useEffect(() => {
     setupWalletSelector({
       network: 'mainnet',
       modules: [
         setupMeteorWallet(),
-        setupMyNearWallet() // Add MyNEAR Wallet support
+        setupMyNearWallet()
       ]
     }).then((selector) => {
       setSelector(selector);
@@ -57,6 +58,99 @@ export default function EditPool() {
       });
     });
   }, []);
+
+  const handleUpdateStakeKey = async () => {
+    if (!selector || accounts.length === 0 || !isOwner) {
+      setError('Please connect your wallet and verify pool ownership');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setResult('');
+
+    try {
+      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
+      
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
+        receiverId: formattedPoolId,
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: 'update_staking_key',
+              args: { stake_public_key: stakePublicKey },
+              gas: '300000000000000',
+              deposit: '0'
+            }
+          }
+        ]
+      });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`Stake key updated successfully! Transaction hash: ${result.transactionHash}`);
+        setIsLoading(false);
+      }
+      // For MyNEAR Wallet, result will be handled by the hook
+      
+    } catch (err) {
+      console.error('Error updating stake key:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update stake key');
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateRewardFee = async () => {
+    if (!selector || accounts.length === 0 || !isOwner) {
+      setError('Please connect your wallet and verify pool ownership');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setResult('');
+
+    try {
+      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
+      
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
+        receiverId: formattedPoolId,
+        actions: [
+          {
+            type: "FunctionCall",
+            params: {
+              methodName: 'update_reward_fee_fraction',
+              args: {
+                reward_fee_fraction: {
+                  numerator: parseInt(numerator, 10),
+                  denominator: parseInt(denominator, 10)
+                }
+              },
+              gas: '300000000000000',
+              deposit: '0'
+            }
+          }
+        ]
+      });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`Reward fee updated successfully! Transaction hash: ${result.transactionHash}`);
+        setIsLoading(false);
+      }
+      // For MyNEAR Wallet, result will be handled by the hook
+      
+    } catch (err) {
+      console.error('Error updating reward fee:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update reward fee');
+      setIsLoading(false);
+    }
+  };
 
   const handleSignIn = () => {
     modal?.show();
@@ -73,157 +167,121 @@ export default function EditPool() {
       setError('Please connect your wallet and enter a pool ID');
       return;
     }
-
+  
     setIsLoading(true);
     setError('');
     setResult('');
-    setIsOwner(null);
-    setPoolInfo(null);
-
+    setIsOwner(false);
+    setPoolOwner(null);
+  
     try {
       const formattedPoolId = poolId.endsWith('.poolv1.near') 
         ? poolId 
         : `${poolId}.poolv1.near`;
       
-      const wallet = await selector.wallet();
+      // Use JsonRpcProvider for view calls instead of transactions
+      const { network } = selector.options;
+      const provider = new JsonRpcProvider({ url: network.nodeUrl });
       
-      // Query the pool info to get the owner
-      const poolInfoResult = await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
-        receiverId: formattedPoolId,
-        actions: [
-          {
-            type: "FunctionCall" as const,
-            params: {
-              methodName: 'get_owner_id',
-              args: {},
-              gas: '100000000000000',
-              deposit: '0'
-            }
-          }
-        ]
-      });
-
-      // This is a simplification - in reality, you would parse the result
-      // from the transaction outcome
-      // For demo purposes, let's assume we got the owner ID
-      const ownerId = accounts[0].accountId; // This would normally come from the result
+      // Get the pool owner using a view call
+      const ownerResponse = await provider.query({
+        request_type: 'call_function',
+        account_id: formattedPoolId,
+        method_name: 'get_owner_id',
+        args_base64: btoa(JSON.stringify({})),
+        finality: 'optimistic',
+      }) as any;
+      
+      if (!ownerResponse || ownerResponse.error) {
+        throw new Error(ownerResponse?.error?.message || 'Failed to retrieve pool information');
+      }
+      
+      // Parse the result (decode from Uint8Array)
+      let ownerIdBytes, ownerIdString;
+      
+      if (ownerResponse.result) {
+        ownerIdBytes = Uint8Array.from(ownerResponse.result);
+        ownerIdString = new TextDecoder().decode(ownerIdBytes);
+        
+        try {
+          // Some responses may be JSON encoded, try to parse
+          const parsed = JSON.parse(ownerIdString);
+          ownerIdString = typeof parsed === 'string' ? parsed : ownerIdString;
+        } catch (e) {
+          // If not JSON, use string directly
+        }
+      } else {
+        throw new Error('Invalid response from pool contract');
+      }
+      
+      // Store the pool owner
+      setPoolOwner(ownerIdString);
       
       // Check if current user is the owner
-      const isOwnerResult = ownerId === accounts[0].accountId;
-      setIsOwner(isOwnerResult);
+      const currentUser = accounts[0].accountId;
+      const isCurrentUserOwner = ownerIdString === currentUser;
       
-      if (isOwnerResult) {
-        // If owner, also get current stake public key and reward fee
-        setPoolInfo({
-          stakePublicKey: "ed25519:example....", // Placeholder - would come from contract
-          rewardFeeFraction: {
-            numerator: 5,
-            denominator: 100
-          }
-        });
-        
-        // Update form with current values
-        setStakePublicKey(poolInfo?.stakePublicKey || "");
-        setNumerator(String(poolInfo?.rewardFeeFraction?.numerator || 5));
-        setDenominator(String(poolInfo?.rewardFeeFraction?.denominator || 100));
+      setIsOwner(isCurrentUserOwner);
+      
+      if (isCurrentUserOwner) {
+        // If owner, fetch current stake public key and reward fee
+        await fetchPoolSettings(formattedPoolId, provider);
       } else {
-        setError('You are not the owner of this pool');
+        setError(`You are not the owner of this pool. Only ${ownerIdString} can modify these settings.`);
       }
     } catch (err) {
+      console.error('Error checking pool ownership:', err);
       setError(err instanceof Error ? err.message : 'Failed to check pool ownership');
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleUpdateStakeKey = async () => {
-    if (!selector || accounts.length === 0 || !isOwner) {
-      setError('Please connect your wallet and verify pool ownership');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setResult('');
-
+  
+  // New function to fetch pool settings
+  const fetchPoolSettings = async (poolId: string, provider: JsonRpcProvider) => {
     try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
-        ? poolId 
-        : `${poolId}.poolv1.near`;
+      // Get stake public key
+      const stakeKeyResponse = await provider.query({
+        request_type: 'call_function',
+        account_id: poolId,
+        method_name: 'get_staking_key',
+        args_base64: btoa(JSON.stringify({})),
+        finality: 'optimistic',
+      }) as any;
       
-      const wallet = await selector.wallet();
+      if (stakeKeyResponse && stakeKeyResponse.result) {
+        const bytes = Uint8Array.from(stakeKeyResponse.result);
+        const rawResult = new TextDecoder().decode(bytes);
+        try {
+          const parsedKey = JSON.parse(rawResult);
+          setStakePublicKey(parsedKey);
+        } catch (e) {
+          setStakePublicKey(rawResult.replace(/"/g, ''));
+        }
+      }
       
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
-        receiverId: formattedPoolId,
-        actions: [
-          {
-            type: "FunctionCall" as const,
-            params: {
-              methodName: 'update_staking_key',
-              args: { stake_public_key: stakePublicKey },
-              gas: '300000000000000',
-              deposit: '0'
-            }
-          }
-        ],
-        callbackUrl: window.location.href // Add callback URL
-      });
+      // Get reward fee
+      const rewardFeeResponse = await provider.query({
+        request_type: 'call_function',
+        account_id: poolId,
+        method_name: 'get_reward_fee_fraction',
+        args_base64: btoa(JSON.stringify({})),
+        finality: 'optimistic',
+      }) as any;
       
-      // Don't update state here as we'll be redirected
+      if (rewardFeeResponse && rewardFeeResponse.result) {
+        const bytes = Uint8Array.from(rewardFeeResponse.result);
+        const rawResult = new TextDecoder().decode(bytes);
+        try {
+          const parsedFee = JSON.parse(rawResult);
+          setNumerator(parsedFee.numerator.toString());
+          setDenominator(parsedFee.denominator.toString());
+        } catch (e) {
+          console.error("Failed to parse reward fee:", e);
+        }
+      }
     } catch (err) {
-      // Only handle errors that occur before redirect
-      console.error('Error before redirect:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdateRewardFee = async () => {
-    if (!selector || accounts.length === 0 || !isOwner) {
-      setError('Please connect your wallet and verify pool ownership');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setResult('');
-
-    try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
-        ? poolId 
-        : `${poolId}.poolv1.near`;
-      
-      const wallet = await selector.wallet();
-      
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
-        receiverId: formattedPoolId,
-        actions: [
-          {
-            type: "FunctionCall" as const,
-            params: {
-              methodName: 'update_reward_fee_fraction',
-              args: { 
-                reward_fee_fraction: {
-                  numerator: parseInt(numerator, 10),
-                  denominator: parseInt(denominator, 10)
-                }
-              },
-              gas: '300000000000000',
-              deposit: '0'
-            }
-          }
-        ],
-        callbackUrl: window.location.href
-      });
-      
-      // Don't update state here
-    } catch (err) {
-      // Handle pre-redirect errors
-      setIsLoading(false);
-      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
+      console.error('Error fetching pool settings:', err);
     }
   };
 
@@ -285,12 +343,6 @@ export default function EditPool() {
           >
             {isLoading ? 'Checking...' : 'Check Pool Ownership'}
           </button>
-
-          {isOwner === false && (
-            <div className="bg-red-900 border border-red-500 p-3 rounded-md my-4 text-center">
-              You are not the owner of this pool. Only the pool owner can modify these settings.
-            </div>
-          )}
 
           {isOwner && (
             <>

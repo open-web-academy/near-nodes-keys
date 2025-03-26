@@ -1,27 +1,26 @@
 import { useState, useEffect } from 'react';
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
-import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet'; // Add this import
+import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
 import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
 import "@near-wallet-selector/modal-ui/styles.css";
 import { useTransactionResult } from '../hooks/useTransactionResult';
+import { executeTransaction } from '../utils/walletUtils';
 
 export default function LaunchPool() {
   const [selector, setSelector] = useState<WalletSelector | null>(null);
   const [modal, setModal] = useState<any>(null);
   const [accounts, setAccounts] = useState<Array<AccountState>>([]);
-  const [result, setResult] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Form fields
   const [poolId, setPoolId] = useState('');
   const [ownerId, setOwnerId] = useState('');
   const [stakePublicKey, setStakePublicKey] = useState('');
   const [numerator, setNumerator] = useState('5');
   const [denominator, setDenominator] = useState('100');
+  const [result, setResult] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Use the transaction result hook
   const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
@@ -29,36 +28,36 @@ export default function LaunchPool() {
   // Handle transaction results
   useEffect(() => {
     if (transactionHash) {
-      setResult(`Pool creation successful! Transaction hash: ${transactionHash}`);
+      setResult(`Pool launch successful! Transaction hash: ${transactionHash}`);
       setIsLoading(false);
       clearTransactionResult();
     }
     
     if (transactionError) {
-      setError(`Failed to create pool: ${transactionError}`);
+      setError(`Failed to launch pool: ${transactionError}`);
       setIsLoading(false);
       clearTransactionResult();
     }
-  }, [transactionHash, transactionError]);
+  }, [transactionHash, transactionError, clearTransactionResult]);
 
   useEffect(() => {
     setupWalletSelector({
       network: 'mainnet',
       modules: [
         setupMeteorWallet(),
-        setupMyNearWallet() // Add MyNEAR Wallet support
+        setupMyNearWallet() // Add support for MyNEAR Wallet
       ]
     }).then((selector) => {
       setSelector(selector);
       setModal(setupModal(selector, { contractId: 'poolv1.near' }));
       selector.store.observable.subscribe((state) => {
         setAccounts(state.accounts);
-        if (state.accounts.length > 0 && !ownerId) {
-          setOwnerId(state.accounts[0].accountId);
+        if (state.accounts.length > 0) {
+          setOwnerId(state.accounts[0].accountId); // Auto-fill owner ID with connected account
         }
       });
     });
-  }, [ownerId]);
+  }, []);
 
   const handleSignIn = () => {
     modal?.show();
@@ -82,7 +81,6 @@ export default function LaunchPool() {
 
     try {
       setIsLoading(true);
-      const wallet = await selector.wallet();
       
       // Format the pool ID correctly
       const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
@@ -97,8 +95,9 @@ export default function LaunchPool() {
         }
       };
 
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
+      const result = await executeTransaction({
+        selector,
+        accountId: accounts[0].accountId,
         receiverId: 'poolv1.near',
         actions: [
           {
@@ -110,15 +109,19 @@ export default function LaunchPool() {
               deposit: '30000000000000000000000000' // 30 NEAR
             }
           }
-        ],
-        callbackUrl: window.location.href // Add callback URL
+        ]
       });
+
+      // For Meteor Wallet, handle result immediately
+      if (result.walletType === "meteor" && result.success) {
+        setResult(`Pool launch successful! Transaction hash: ${result.transactionHash}`);
+        setIsLoading(false);
+      }
+      // For MyNEAR Wallet, result will be handled by the hook
       
-      // Don't update state here as we'll be redirected
     } catch (err) {
-      // Only handle errors that occur before redirect
-      console.error('Error before redirect:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initiate transaction');
+      console.error('Error launching pool:', err);
+      setError(err instanceof Error ? err.message : 'Failed to launch pool');
       setIsLoading(false);
     }
   };

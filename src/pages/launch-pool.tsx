@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { setupWalletSelector } from '@near-wallet-selector/core';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
+import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet'; // Add this import
 import { setupModal } from '@near-wallet-selector/modal-ui';
 import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import Layout from '../components/Layout';
@@ -23,7 +24,10 @@ export default function LaunchPool() {
   useEffect(() => {
     setupWalletSelector({
       network: 'mainnet',
-      modules: [setupMeteorWallet()]
+      modules: [
+        setupMeteorWallet(),
+        setupMyNearWallet() // Add MyNEAR Wallet support
+      ]
     }).then((selector) => {
       setSelector(selector);
       setModal(setupModal(selector, { contractId: 'poolv1.near' }));

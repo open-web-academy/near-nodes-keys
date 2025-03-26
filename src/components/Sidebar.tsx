@@ -97,6 +97,16 @@ export default function Sidebar() {
             >
               Withdraw Rewards
             </button>
+
+            <button
+              type="button"
+              onClick={() => handleNavigation('/ping-validator')}
+              className={`w-full text-left hover:text-white border border-green-400 p-2 rounded-sm bg-gray-700 ${
+                router.pathname === '/ping-validator' ? 'text-white font-bold' : ''
+              }`}
+            >
+              PING Validator
+            </button>
           </nav>
         </div>
         <footer>

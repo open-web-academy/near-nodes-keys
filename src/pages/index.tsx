@@ -1,30 +1,65 @@
 import { useState, useEffect } from 'react';
+import { setupWalletSelector } from '@near-wallet-selector/core';
+import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
+import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
+import { setupModal } from '@near-wallet-selector/modal-ui';
+import type { WalletSelector, AccountState } from '@near-wallet-selector/core';
 import { generateValidatorKey, KeyPair } from '../utils/keyGenerator';
 import Layout from '../components/Layout';
+import "@near-wallet-selector/modal-ui/styles.css";
 import { useTransactionResult } from '../hooks/useTransactionResult';
 
 export default function Home() {
   const [accountId, setAccountId] = useState('');
   const [generatedKey, setGeneratedKey] = useState<KeyPair | null>(null);
   const [error, setError] = useState('');
+  const [result, setResult] = useState('');
   const [selector, setSelector] = useState<WalletSelector | null>(null);
   const [modal, setModal] = useState<any>(null);
   const [accounts, setAccounts] = useState<Array<AccountState>>([]);
+  
+  // Use the transaction result hook
   const { transactionHash, transactionError, clearTransactionResult } = useTransactionResult();
 
+  // Setup wallet selector
+  useEffect(() => {
+    setupWalletSelector({
+      network: 'mainnet',
+      modules: [
+        setupMeteorWallet(),
+        setupMyNearWallet()
+      ]
+    }).then((selector) => {
+      setSelector(selector);
+      setModal(setupModal(selector, { contractId: 'poolv1.near' }));
+      selector.store.observable.subscribe((state) => {
+        setAccounts(state.accounts);
+      });
+    });
+  }, []);
+
+  const handleSignIn = () => {
+    modal?.show();
+  };
+
+  const handleDisconnect = async () => {
+    const wallet = await selector?.wallet();
+    await wallet?.signOut();
+    setAccounts([]);
+  };
+
+  // Handle transaction results (not needed for key generation but kept for consistency)
   useEffect(() => {
     if (transactionHash) {
-      setResult(`PING successful! Transaction hash: ${transactionHash}`);
-      setIsPingSuccess(true);
+      setResult(`Transaction successful! Transaction hash: ${transactionHash}`);
       clearTransactionResult();
     }
 
     if (transactionError) {
-      setError(`Failed to ping validator: ${transactionError}`);
-      setIsPingSuccess(false);
+      setError(`Transaction failed: ${transactionError}`);
       clearTransactionResult();
     }
-  }, [transactionHash, transactionError]);
+  }, [transactionHash, transactionError, clearTransactionResult]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,54 +89,37 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
-  const sendPing = async () => {
-    if (!poolId || !selector || accounts.length === 0) {
-      setError('Please connect your wallet and enter a pool ID');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setResult('');
-    setIsPingSuccess(null);
-
-    try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
-        ? poolId 
-        : `${poolId}.poolv1.near`;
-      
-      const wallet = await selector.wallet();
-      
-      await wallet.signAndSendTransaction({
-        signerId: accounts[0].accountId,
-        receiverId: formattedPoolId,
-        actions: [
-          {
-            type: "FunctionCall",
-            params: {
-              methodName: 'ping',
-              args: {},
-              gas: '100000000000000',
-              deposit: '0'
-            }
-          }
-        ],
-        callbackUrl: window.location.href
-      });
-    } catch (err) {
-      console.error('Ping error:', err);
-      setIsPingSuccess(false);
-      setError(err instanceof Error ? err.message : 'Failed to ping validator');
-      setIsLoading(false);
-    }
-  };
-
   return (
     <Layout>
       <div className="text-green-400 font-mono">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-center mb-6 tracking-widest">
           NEAR Validator Key Generator
         </h1>
+        
+        {/* Wallet Connection - Optional for this page */}
+        <div className="mb-6 text-center">
+          {accounts.length === 0 ? (
+            <button
+              onClick={handleSignIn}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors text-sm"
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
+              <span className="text-green-400 font-medium text-sm sm:text-base">
+                Connected: {accounts[0].accountId}
+              </span>
+              <button
+                onClick={handleDisconnect}
+                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md transition-colors text-sm"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
+        </div>
+        
         <div className="bg-gray-800 border border-green-400 border-dotted rounded-lg p-4 sm:p-6 shadow-md mb-6">
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -135,6 +153,12 @@ export default function Home() {
         {error && (
           <p className="text-red-500 text-center mb-4 text-sm sm:text-base">
             {error}
+          </p>
+        )}
+        
+        {result && (
+          <p className="text-green-400 text-center mb-4 text-sm sm:text-base">
+            {result}
           </p>
         )}
         

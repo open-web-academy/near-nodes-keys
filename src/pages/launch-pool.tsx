@@ -39,11 +39,11 @@ export default function LaunchPool() {
     try {
       setIsLoading(true);
       
-      // Format the pool ID correctly - ensure proper suffix
-      const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
+      // Remove .poolv1.near suffix if present and use the clean pool ID
+      const cleanPoolId = poolId.replace('.poolv1.near', '');
       
       const args = {
-        staking_pool_id: formattedPoolId,
+        staking_pool_id: cleanPoolId,
         owner_id: ownerId,
         stake_public_key: stakePublicKey,
         reward_fee_fraction: {

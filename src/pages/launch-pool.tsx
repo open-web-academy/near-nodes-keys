@@ -13,6 +13,18 @@ export default function LaunchPool() {
   const [result, setResult] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [poolIdWarning, setPoolIdWarning] = useState('');
+
+  const handlePoolIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPoolId(value);
+    
+    if (value.includes('.')) {
+      setPoolIdWarning('Warning: Pool ID should not contain dots (.)');
+    } else {
+      setPoolIdWarning('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +39,7 @@ export default function LaunchPool() {
     try {
       setIsLoading(true);
       
-      // Format the pool ID correctly
+      // Format the pool ID correctly - ensure proper suffix
       const formattedPoolId = poolId.endsWith('.poolv1.near') ? poolId : `${poolId}.poolv1.near`;
       
       const args = {
@@ -86,7 +98,7 @@ export default function LaunchPool() {
                 id="poolId"
                 type="text"
                 value={poolId}
-                onChange={(e) => setPoolId(e.target.value)}
+                onChange={handlePoolIdChange}
                 placeholder="e.g. mypool"
                 required
                 className="w-full sm:flex-1 p-2 sm:p-3 bg-gray-900 border border-green-400 rounded-md sm:rounded-r-none focus:outline-none focus:ring-2 focus:ring-green-400 text-sm sm:text-base"
@@ -95,6 +107,14 @@ export default function LaunchPool() {
                 .poolv1.near
               </span>
             </div>
+            {poolIdWarning && (
+              <p className="text-yellow-400 text-sm mt-1">
+                {poolIdWarning}
+              </p>
+            )}
+            <p className="text-green-400 text-xs sm:text-sm mt-1">
+              Your pool ID will be automatically suffixed with .poolv1.near
+            </p>
           </div>
 
           <div className="mb-4 sm:mb-5">
@@ -170,10 +190,10 @@ export default function LaunchPool() {
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 rounded-md transition-colors"
-            disabled={!accounts.length}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!accounts.length || poolId.includes('.')}
           >
-            Create Staking Pool
+            {!accounts.length ? 'Connect Wallet to Create Pool' : poolId.includes('.') ? 'Invalid Pool ID' : 'Create Staking Pool'}
           </button>
         </form>
       </div>

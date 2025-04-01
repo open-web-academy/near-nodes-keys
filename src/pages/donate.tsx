@@ -39,6 +39,10 @@ export default function Donate() {
       setIsLoading(true);
       const yoctoAmount = utils.format.parseNearAmount(donationAmount);
       
+      if (!yoctoAmount) {
+        throw new Error('Invalid amount format');
+      }
+
       const wallet = await selector.wallet();
       const accountId = accounts[0].accountId;
       

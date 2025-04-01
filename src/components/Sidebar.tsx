@@ -144,7 +144,15 @@ export default function Sidebar() {
               className="inline-block font-mono text-sm px-4 py-2 hover:bg-green-400/5 transition-all duration-200 rounded-lg border border-green-400/20 hover:border-green-400/40"
             >
               <span className="text-green-400">$</span> OPEN_WEB_ACADEMY
-            </a>
+            </a>. Supported by the Professional Node Program of
+            <a
+              href="https://metapool.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block font-mono text-sm px-4 py-2 hover:bg-green-400/5 transition-all duration-200 rounded-lg border border-green-400/20 hover:border-green-400/40"
+            >
+              <span className="text-green-400">$</span> META_POOL
+            </a>.  
           </div>
         </footer>
       </div>

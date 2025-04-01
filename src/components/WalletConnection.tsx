@@ -1,13 +1,13 @@
 import { useWallet } from '../contexts/WalletContext';
 
 export default function WalletConnection() {
-  const { accounts, connectWallet, disconnectWallet, isLoading } = useWallet();
+  const { accounts, connect, disconnect, isLoading } = useWallet();
 
   return (
     <div className="text-center">
       {accounts.length === 0 ? (
         <button
-          onClick={connectWallet}
+          onClick={connect}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
           disabled={isLoading}
         >
@@ -19,7 +19,7 @@ export default function WalletConnection() {
             Connected: {accounts[0].accountId}
           </span>
           <button
-            onClick={disconnectWallet}
+            onClick={disconnect}
             className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md transition-colors text-sm sm:text-base"
           >
             Disconnect

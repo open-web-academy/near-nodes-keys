@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import Sidebar from './Sidebar';
+import WalletConnection from './WalletConnection';
 
 interface LayoutProps {
   children: ReactNode;
@@ -7,15 +8,16 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-gray-900">
-      <Sidebar />
-      
-      {/* Main content area with responsive padding */}
-      <main className="flex-1 p-4 md:p-8 md:ml-64">
-        <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="flex">
+        {/* New Sidebar Component */}
+        <Sidebar />
+
+        {/* Main Content */}
+        <div className="flex-1 p-8">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

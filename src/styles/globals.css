@@ -1,14 +1,13 @@
-@import "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Custom global design variables */
 :root {
-  --primary-color: #0070f3;
-  --primary-color-hover: #005bb5;
-  --background-color: #ffffff;
-  --font-family: 'Inter', sans-serif;
+  --primary-color: #00ff00;
+  --primary-color-hover: #00cc00;
+  --background-color: #000000;
+  --font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
 
 /* Base styles */
@@ -19,7 +18,7 @@ html {
 body {
   font-family: var(--font-family);
   background-color: var(--background-color);
-  color: #333;
+  color: var(--primary-color);
   line-height: 1.6;
 }
 
@@ -31,11 +30,11 @@ body {
 
 /* Typography */
 h1 {
-  @apply text-3xl sm:text-4xl md:text-5xl font-bold mb-4;
+  @apply text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-terminal-green;
 }
 
 h2 {
-  @apply text-2xl sm:text-3xl font-semibold mb-3;
+  @apply text-2xl sm:text-3xl font-semibold mb-3 text-terminal-green;
 }
 
 p {
@@ -45,16 +44,16 @@ p {
 /* Form elements */
 input,
 button {
-  @apply rounded-md border border-gray-300 p-2;
+  @apply rounded-md border border-terminal-green/30 p-2 bg-black/50 text-terminal-green;
 }
 
 button {
-  @apply bg-[var(--primary-color)] text-white hover:bg-[var(--primary-color-hover)] transition-colors;
+  @apply hover:bg-terminal-green/10 transition-colors;
 }
 
 /* Card component for consistent layout */
 .card {
-  @apply bg-white shadow rounded-lg p-6 mb-4;
+  @apply bg-black/50 shadow-lg shadow-terminal-green/5 rounded-lg p-6 mb-4 border border-terminal-green/20;
 }
 
 /* Utility class if needed */

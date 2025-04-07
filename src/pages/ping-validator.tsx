@@ -12,6 +12,7 @@ export default function PingValidator() {
   
   // Form fields
   const [poolId, setPoolId] = useState('');
+  const [poolFormat, setPoolFormat] = useState('poolv1.near');
 
   const sendPing = async () => {
     if (!poolId || !selector || accounts.length === 0) {
@@ -25,9 +26,9 @@ export default function PingValidator() {
     setIsPingSuccess(null);
 
     try {
-      const formattedPoolId = poolId.endsWith('.poolv1.near') 
+      const formattedPoolId = poolId.endsWith(`.${poolFormat}`) 
         ? poolId 
-        : `${poolId}.poolv1.near`;
+        : `${poolId}.${poolFormat}`;
       
       const result = await executeTransaction({
         selector,
@@ -81,9 +82,14 @@ export default function PingValidator() {
               required
               className="w-full sm:flex-1 p-2 sm:p-3 bg-gray-900 border border-green-400 rounded-md sm:rounded-r-none focus:outline-none focus:ring-2 focus:ring-green-400 text-sm sm:text-base"
             />
-            <span className="mt-1 sm:mt-0 inline-flex items-center px-3 py-2 sm:py-3 bg-gray-900 border border-green-400 sm:border-l-0 rounded-md sm:rounded-l-none text-sm sm:text-base">
-              .poolv1.near
-            </span>
+            <select
+              value={poolFormat}
+              onChange={(e) => setPoolFormat(e.target.value)}
+              className="mt-1 sm:mt-0 p-2 sm:p-3 bg-gray-900 border border-green-400 sm:border-l-0 rounded-md sm:rounded-l-none text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              <option value="poolv1.near">.poolv1.near</option>
+              <option value="pool.near">.pool.near</option>
+            </select>
           </div>
         </div>
         

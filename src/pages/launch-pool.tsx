@@ -6,6 +6,7 @@ import TransactionResult from '../components/TransactionResult';
 export default function LaunchPool() {
   const { selector, accounts } = useWallet();
   const [poolId, setPoolId] = useState('');
+  const [poolFormat, setPoolFormat] = useState('poolv1.near');
   const [ownerId, setOwnerId] = useState('');
   const [stakePublicKey, setStakePublicKey] = useState('');
   const [numerator, setNumerator] = useState('5');
@@ -39,8 +40,8 @@ export default function LaunchPool() {
     try {
       setIsLoading(true);
       
-      // Remove .poolv1.near suffix if present and use the clean pool ID
-      const cleanPoolId = poolId.replace('.poolv1.near', '');
+      // Remove suffix if present and use the clean pool ID
+      const cleanPoolId = poolId.replace(`.${poolFormat}`, '');
       
       const args = {
         staking_pool_id: cleanPoolId,
@@ -52,10 +53,12 @@ export default function LaunchPool() {
         }
       };
 
+      const contractId = poolFormat === 'poolv1.near' ? 'poolv1.near' : 'pool.near';
+
       const result = await executeTransaction({
         selector,
         accountId: accounts[0].accountId,
-        receiverId: 'poolv1.near',
+        receiverId: contractId,
         actions: [
           {
             type: "FunctionCall",
@@ -103,9 +106,14 @@ export default function LaunchPool() {
                 required
                 className="w-full sm:flex-1 p-2 sm:p-3 bg-gray-900 border border-green-400 rounded-md sm:rounded-r-none focus:outline-none focus:ring-2 focus:ring-green-400 text-sm sm:text-base"
               />
-              <span className="mt-1 sm:mt-0 inline-flex items-center px-3 py-2 sm:py-3 bg-gray-900 border border-green-400 sm:border-l-0 rounded-md sm:rounded-l-none text-sm sm:text-base">
-                .poolv1.near
-              </span>
+              <select
+                value={poolFormat}
+                onChange={(e) => setPoolFormat(e.target.value)}
+                className="mt-1 sm:mt-0 p-2 sm:p-3 bg-gray-900 border border-green-400 sm:border-l-0 rounded-md sm:rounded-l-none text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                <option value="poolv1.near">.poolv1.near</option>
+                <option value="pool.near">.pool.near</option>
+              </select>
             </div>
             {poolIdWarning && (
               <p className="text-yellow-400 text-sm mt-1">
@@ -113,7 +121,7 @@ export default function LaunchPool() {
               </p>
             )}
             <p className="text-green-400 text-xs sm:text-sm mt-1">
-              Your pool ID will be automatically suffixed with .poolv1.near
+              Your pool ID will be automatically suffixed with .{poolFormat}
             </p>
           </div>
 

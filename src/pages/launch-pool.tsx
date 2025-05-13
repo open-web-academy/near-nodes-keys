@@ -54,6 +54,8 @@ export default function LaunchPool() {
       };
 
       const contractId = poolFormat === 'poolv1.near' ? 'poolv1.near' : 'pool.near';
+      // Set deposit amount based on pool format: 30 NEAR for poolv1.near, 5 NEAR for pool.near
+      const depositAmount = poolFormat === 'poolv1.near' ? '30000000000000000000000000' : '5000000000000000000000000';
 
       const result = await executeTransaction({
         selector,
@@ -66,7 +68,7 @@ export default function LaunchPool() {
               methodName: 'create_staking_pool',
               args,
               gas: '300000000000000',
-              deposit: '30000000000000000000000000' // 30 NEAR
+              deposit: depositAmount // Variable deposit based on pool format
             }
           }
         ]
@@ -83,6 +85,9 @@ export default function LaunchPool() {
       setIsLoading(false);
     }
   };
+
+  // Calculate the required deposit amount in NEAR based on selected pool format
+  const requiredDeposit = poolFormat === 'poolv1.near' ? 30 : 5;
 
   return (
     <div className="text-green-400 font-mono">
@@ -189,7 +194,7 @@ export default function LaunchPool() {
 
           <div className="mb-4 sm:mb-5 p-3 bg-gray-900 border border-green-400 border-dotted rounded-md">
             <p className="text-sm text-yellow-400 mb-1">
-              <span className="font-bold">Note:</span> This transaction will cost exactly 30 NEAR
+              <span className="font-bold">Note:</span> This transaction will cost exactly {requiredDeposit} NEAR
             </p>
             <p className="text-xs text-gray-400">
               This is the minimum required balance to create a staking pool

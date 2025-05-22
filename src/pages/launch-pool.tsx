@@ -43,7 +43,13 @@ export default function LaunchPool() {
       // Remove suffix if present and use the clean pool ID
       const cleanPoolId = poolId.replace(`.${poolFormat}`, '');
       
-      const args = {
+      const args: {
+        staking_pool_id: string;
+        owner_id: string;
+        stake_public_key: string;
+        reward_fee_fraction: { numerator: number; denominator: number };
+        code_hash?: string;
+      } = {
         staking_pool_id: cleanPoolId,
         owner_id: ownerId,
         stake_public_key: stakePublicKey,
@@ -56,6 +62,11 @@ export default function LaunchPool() {
       const contractId = poolFormat === 'poolv1.near' ? 'poolv1.near' : 'pool.near';
       // Set deposit amount based on pool format: 30 NEAR for poolv1.near, 5 NEAR for pool.near
       const depositAmount = poolFormat === 'poolv1.near' ? '30000000000000000000000000' : '5000000000000000000000000';
+
+      // Add code_hash for pool.near
+      if (poolFormat === 'pool.near') {
+        args.code_hash = 'AjD4YJaXgpiRdiArqnzyDi7Bkr1gJms9Z2w7Ev5esTKB';
+      }
 
       const result = await executeTransaction({
         selector,
